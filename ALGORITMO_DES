@@ -1,0 +1,50 @@
+Algoritmo DES:
+
+Funcao feistel (functionF no codigo)
+Parametos: 
+A (32bits) (Ri do encryptDESPLAIN)
+J (48bits) (Subkey calculada no keySchedule)
+Retorna: 32 bits
+Algoritmo:
+
+1- Expande A de 32 bits para 48 bits. Usando o eBit
+2- Executa o xor entre A(expandido) e J
+3- Divide E(A) (o resultado do 2) em 8 partes de 6bits
+4- Corre pelas 8 Sboxes
+   a- AS Sboxes sao acedidas como array bidimensional [R][C]
+   com R um valor entre 0 e 3, que corresponde aos bits 1 e 6
+   do B[i]. C e um valor entre 0 e 15, que corresponde aos 
+   restantes bits. Depois de aceder Sbox[i][R][C] recebemos 4 bits de
+   valor (0 a 15) e guardamos em C[i]
+5- Junta os 8 C[i]'s num Cjoined
+6- Permuta O Cjoined de acordo com P e retorna o resultado.
+
+Calcular as 16 key schedules (DESKeySchedule)
+Parametros:
+unsigned long long key; (64 bits)
+Retorna:
+unsigned long long * subKeys(16 keys de 64 bits cada)
+Algoritmo:
+1- Remove os bits de paridade (8 em 8)
+2- Calcula as permutacoes segundo PC1
+3- Divide o resultado de 2 em C0D0 (Parte esquerda e direita)
+4- Executa um for i in range(1,16)
+   a- C[i] = LeftCircularShift(C[i-1], i);
+   b- D[i] = LeftCircularShift(D[i-1], i);
+   c- Junta C[i-1] e D[i-1] em CD[i-1]
+   d- K[i-1] e igual a permutacao PC2 sobre CD[i-1]
+
+
+EncryptDESPlain
+Parametros:
+unsigned long long plain (64bits)
+unsigned long long subkeys[16] (16 subkeys de 48 bits)
+Retorna:
+O resultado encriptado/desencriptado conforme a ordem das subkeys
+Algoritmo:
+1- Permuta plain de acordo com IP
+2- Divide o resultado em L[0]R[0]
+3- for i in range(i, 16)
+   a- L[i] = R[i-1]
+   b- Chamada a funcao feistel com parametros R[i-1], subkey[i])
+4- Aplica IP-1 a R16L16 (Atencao que R e L estao trocados de proposito)

@@ -1,0 +1,35 @@
+A key para passar ao DES por default e:
+52525252525252522525252525252525 (NAO PERCEBO ISTO)?
+
+O calculo MDC1 utilizado no MDC4 consiste em
+Input:
+KD1
+KD2
+IN1
+IN2
+Output
+OUT1
+OUT2
+Todos de 64 bits
+KD1mod = set bit 1 e 2 de KD1 para 1 e 0, respectivamente
+KD2mod = set bit 1 e 2 de KD2 para 0 e 1, respectivamente
+F1 = IN1 XOR eK(D1mod(IN1)) // eK e a encriptacao de DES de D1mod(IN1) com key K
+F2 = IN2 XOR eK(D2mod(IN2))
+OUT1 = bits o a 31 de F1 concatenado com bits 32 a 63 de F2
+OUT2 = bits 0 a 31 de F2 concatenado com bits 32 a 63 de F1
+
+O MDC4 consiste de:
+Input:
+n, text, KEY1, KEY2, MDC
+Algoritmo:
+NOTA: T8<i> representa o i-esimo primeiro bloco de 8bytes(64bits) do ficheiro
+For i in range(1, n)
+DO
+   Chama MDC-1(KEY1, KEY2, T8<i>, T8<i>,OUT1,OUT2);
+   KEY1int = OUT1
+   KEY2int = OUT2
+   Chama MDC-1(Key1int, KEY2int, KEY2, KEY1, OUT1, OUT2);
+   KEY1 = OUT1
+   KEY2 = OUT2
+End DO
+OUTPUT = (KEY concatenado KEY2)
