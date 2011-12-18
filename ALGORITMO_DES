@@ -46,5 +46,5 @@ Algoritmo:
 2- Divide o resultado em L[0]R[0]
 3- for i in range(i, 16)
    a- L[i] = R[i-1]
-   b- Chamada a funcao feistel com parametros R[i-1], subkey[i])
+   b- R[i] = L[i-1] xor feistel(R[i-1], subkey[i])
 4- Aplica IP-1 a R16L16 (Atencao que R e L estao trocados de proposito)
