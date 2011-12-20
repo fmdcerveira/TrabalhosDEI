@@ -3,7 +3,7 @@ Teoria da Informação, LEI, 2008/2009*/
 
 #include "DES.h"
 #include <math.h>
-
+#include "MDC4.h"
 /*******************************/
 unsigned char IP[64] = {
    58, 50, 42, 34, 26, 18, 10, 2, 
@@ -116,11 +116,6 @@ unsigned char PC_2[48] = {
    46, 42, 50, 36, 29, 32
 };
 
-unsigned long long XOR(unsigned long long a, unsigned long long b)
-{
-   return a ^ b;
-}
-
 unsigned long functionF(unsigned int A, unsigned long long J)
 {
    // A (32) J(48)
@@ -138,7 +133,7 @@ unsigned long functionF(unsigned int A, unsigned long long J)
    }
 
    // Faz o xor
-   unsigned long long xorExpanded = XOR(expanded, J);
+   unsigned long long xorExpanded = expanded ^ J;
    
    // Divide E(A) em B0...B8 (de 6 bits)
    unsigned char B[8];
@@ -192,19 +187,7 @@ unsigned long functionF(unsigned int A, unsigned long long J)
    } 
    
    // Ultimo Passo. Permutacao de Cjoined segundo P
-   /*
-    * Cjoined
-      00100001111001011100001010110001
-      Target
-      10000011001001010101111100000101
 
-      3 vai po 23
-      8 vai po 18
-      9 vai po 24
-      10 vai po 16
-      11 vai po 30
-      00000000000000010100001100000100
-*/
    unsigned long final = 0;
    for (i = 1; i <= 32; i++)
    {
@@ -279,6 +262,7 @@ int DESgeneral (char* inFileName, unsigned long long key, int type)
 		 unsigned char* signature(unsigned char* inByteArray, long dim, unsigned long long key)  // ver abaixo
 		 e adicionar hash aos dados
 		 ***********************/
+      signature(inByteArray, inFileSize, key);
 	}
 	
 	
@@ -362,7 +346,7 @@ unsigned char* encryptDES(unsigned char* inByteArray, long dim, unsigned long lo
 {
 	unsigned long long subKeys[16];
 	unsigned char* outByteArray;
-	unsigned long long plain, cipher, aux1, aux2;
+	unsigned long long plain, cipher;
 	int i, j;
 
 	
@@ -400,7 +384,6 @@ unsigned char* encryptDES(unsigned char* inByteArray, long dim, unsigned long lo
 
 		//determina cifra
 		if (j - i == 8)  //ficheiro é múltiplo de 8 bytes
-			/**** ADICIONAR CÓDIGO PARA A FUNÇÃO ENCRYPTDESPLAIN (ABAIXO) ********/
 			cipher = encryptDESplain(plain, subKeys);
 		else
 			cipher = plain;
@@ -442,24 +425,25 @@ unsigned long long encryptDESplain(unsigned long long plain, unsigned long long*
          x0 |= mask;
       }
    }
+   
    // Divide em L0 e R0
    unsigned long long R[17];
    unsigned long long L[17];
    L[0] = x0 >> 32;
    R[0] = x0 & 0xFFFFFFFF;
    
+   
    int a;
    for (a = 1; a < 17; a++)
    {
       L[a] = R[a-1];
-      R[a] = XOR(L[a-1], functionF(R[a-1], subKeys[a-1]));
+      R[a] = L[a-1] ^ functionF(R[a-1], subKeys[a-1]);
    }
    
    // Junta R[16]L[16]
    unsigned long long  r16l16 = (R[16] << 32) | L[16];
    unsigned long long  final = 0;
-   //printf("%llX %llX %llX\n", R[16], L[16], r16l16);
-   
+
    // Permutacao IP-1
    for (i = 0; i < 64; i++)
    {
@@ -471,29 +455,10 @@ unsigned long long encryptDESplain(unsigned long long plain, unsigned long long*
       }
    }
    
-   //printf("%llX\n", final);
    return final;
 
 }
 
-
-/* Circular left shift */
-unsigned long long rof(unsigned long long x, int L, int N)
-{
-   unsigned lsbs = x & ((1 >> L) - 1);
-   return (x << L) | (lsbs >> (N-L));
-}
-
-/* Circular left shift variavel em i */
-unsigned long long LS(unsigned long long value, int i)
-{
-   unsigned long long t;
-   if ((i == 1) || (i == 2) || (i == 9) || (i == 16))
-      t = rof(value, 1, 28);
-   else  t = rof(value, 2, 28);
-   return t & 0xFFFFFFF; //Trunca a 28 bits
-   
-}
 
 // função para gerar sub-keys (uma chave para cada uma das 16 iterações)
 void DESKeySchedule(unsigned long long key, unsigned long long* subKeys)
@@ -508,66 +473,40 @@ void DESKeySchedule(unsigned long long key, unsigned long long* subKeys)
    unsigned long long resultadosPC1 = 0;
    for (i = 0; i < 56; i++)
    {
-         unsigned long long mask = pow(2, 56-i);
-         unsigned long long mask2 = pow(2, 56-PC_1[i]);
-         if ((resultado & mask2) != 0)
-         {
-            resultadosPC1 |= mask;
-         }
-      
+      resultadosPC1 <<=1; //Anda uma casa para a esquerda
+      resultadosPC1 |= (key >> (64-PC_1[i])) & 1; //Set o bit do PC_1[i]
    }
 
-   unsigned long long C[16], D[16], K[16]; 
+   // Divide em C[0] e D[0]
+   unsigned long long C[17], D[17], K[16]; 
    C[0] = resultadosPC1 >> 28;
    D[0] = resultadosPC1 & 0xFFFFFFF;
 
-   int z;
-   for (i = 1; i < 16; i++)
+   // Numero de casas a mover
+   int shiftSize[16] = {1,1,2,2,2,2,2,2,1,2,2,2,2,2,2,1};
+   for (i = 1; i < 17; i++)
    {
-      C[i] = LS(C[i-1], i);
-      D[i] = LS(D[i-1], i);
+      // Faz o left circular shift de acordo com as casas a mover
+      C[i] = (C[i-1]<<shiftSize[i-1]) | (C[i-1] >> (28-shiftSize[i-1])); //Ci
+      D[i] = (D[i-1]<<shiftSize[i-1]) | (D[i-1] >> (28-shiftSize[i-1])); //Di
+      // Mascaras para limitar a 56 bits
+      C[i] = C[i]&0xFFFFFFF; D[i] = D[i]&0xFFFFFFF;;
+
+      // Junta C[i] e D[i]
+      unsigned long long CD = (C[i] << 28) | (D[i]);
       
-      // Calcula a key de i-1
-      unsigned long long CD = (C[i-1] << 28) | (D[i-1]);
-      //printf("CD[] = %llx\n", CD);
       K[i-1] = 0;
-      // PC2
+
+      // Calcula a key de i-1 (PC2)
+      int z;
       for (z = 0; z < 48; z++)
       {
-         // CD tem 56 bits
-         int l, la = -1;
-         for (l = 0; l < 48; l++)
-            if (PC_2[l] == z) { la = l; break;}
-                        // Nem todos os valores tem correspondencia
-         if (la != -1)
-         {
-            unsigned long long mask2 = pow(2, 47-la);
-            unsigned long long mask = pow(2, 55-z);
-            if ((CD & mask) != 0)
-            {
-               //printf("%d vai po %d\n", z, la+1);         
-               K[i-1] |= mask2;
-            }
-         }
+         K[i-1] = K[i-1] << 1;  // Move para a esquerda (na primeira vez fica igual)
+         K[i-1] |= (CD>>(56-PC_2[z]) & 1); // Faz set ao bit no sitio certo
       }      
-      //printf("Ki %llX %d\n", K[i-1], i-1);
-      subKeys[0] = 0x0b02679b49a5;
-      subKeys[1] = 0x69a659256a26;
-      subKeys[2] = 0x45d48ab428d2;
-      subKeys[3] = 0x7289d2a58257;
-      subKeys[4] = 0x3ce80317a6c2;
-      subKeys[5] = 0x23251e3c8545;
-      subKeys[6] = 0x6c04950ae4c6;
-      subKeys[7] = 0x5788386ce581;
-      subKeys[8] = 0xc0c9e926b839;
-      subKeys[9] = 0x91e307631d72;
-      subKeys[10] = 0x211f830d893a;
-      subKeys[11] = 0x7130e5455c54;
-      subKeys[12] = 0x91c4d04980fc;
-      subKeys[13] = 0x5443b681dc8d;
-      subKeys[14] = 0xb691050a16b5;
-      subKeys[15] = 0xca3d03b87032;
-      return;
+
+      // Subkey calculada devolve para o parametro
+      subKeys[i-1]=K[i-1]; 
    }
    
 }
@@ -575,10 +514,47 @@ void DESKeySchedule(unsigned long long key, unsigned long long* subKeys)
 // funo para criao de de uma hash a partir dos dados do ficheiro, usando MDC-4
 unsigned char* signature(unsigned char* inByteArray, long dim, unsigned long long key)
 {
+   //printf("KEY E %llX\n", key);
+   // Transforma o unsigned char * para unsigned long long * para trabalhar com o MDC4
+   unsigned long long * x = (unsigned long long *) malloc((dim/8)+1 * sizeof(unsigned long long));
+   
+   // Mete char a char na sua ordem correcta
+   int i;
+   for (i = 0; i < dim; i+=8)
+   {  
+      x[i] = 0;
+      x[i] = (unsigned long long) inByteArray[i]<<56;
+      x[i] |= (unsigned long long) inByteArray[i+1] << 48;
+      x[i] |= (unsigned long long) inByteArray[i+2] << 40;
+      x[i] |= (unsigned long long) inByteArray[i+3] << 32;
+      x[i] |= (unsigned long long) inByteArray[i+4] << 24;
+      x[i] |= (unsigned long long) inByteArray[i+5] << 16; 
+      x[i] |= (unsigned long long) inByteArray[i+6] << 8;
+
+      x[i] |= (unsigned long long) inByteArray[i+7];
+      //printf("[%d] %llX\n", i,x[i]);
+   }
+   
+   unsigned long long res = MDC4(x, dim, key);
+   
+   // Volta a transformar o unsigned long long res num unsigned char *
+   // 16 caracteres em hexadecimal
+   unsigned char * sig = (unsigned char *) malloc(17);
+   sig[16] = '\0';
+   unsigned long long mask = 0xF000000000000000; // Mascara inicial
+   for (i = 0; i < 16; i++)
+   {
+      sig[i] = (res & mask)>>(60-(i*4)); // Aplica a mascara para obter 4 bits e move-os de acordo
+      mask >>= 4; // Altera a masacara para os proximos 4 bits
+   }
+   return sig;
 }
 
 
 //funo para verificao da assinatura: verificar se a hash criada a partir dos dados  igual  hash recebida
 int checkSignature(unsigned char* inByteArray, unsigned char* hash)
 {
+   if (strcmp(hash, signature(inByteArray, strlen(inByteArray), 0x0)) == 0)
+      return 1;
+   else return 0;
 }
