@@ -1,4 +1,3 @@
-// im developing
 package githubteste;
 import java.util.Scanner;
 import java.util.*;
