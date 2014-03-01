@@ -47,7 +47,14 @@ public class asd {
 						+"A: An extroverted computer scientist looks at your shoes when he talks to you.",
 					    
 					    "Q: Why do programmers always mix up Halloween and Christmas?\n"
-					    +"A: Because Oct 31 == Dec 25!"};
+					    +"A: Because Oct 31 == Dec 25!",
+
+					    "Knock, knock.\n"
+						+"Who’s there?\n"
+						+"very long pause...\n"
+						+"Java.\n"
+						+":-o"
+					};
 
 		int random=randInt(0,jokes.length-1);
 		System.out.println("\n"+jokes[random]+"\n");
