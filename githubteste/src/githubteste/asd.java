@@ -45,7 +45,10 @@ public class asd {
 	public static void showJoke(){
 
 		String[]  jokes={"Q: How do you tell an introverted computer scientist from an extroverted computer scientist?\n"
-						+"A: An extroverted computer scientist looks at your shoes when he talks to you."};
+						+"A: An extroverted computer scientist looks at your shoes when he talks to you.",
+					    
+					    "Q: Why do programmers always mix up Halloween and Christmas?\n"
+					    +"A: Because Oct 31 == Dec 25!"};
 
 		int random=randInt(0,jokes.length-1);
 		System.out.println("\n"+jokes[random]+"\n");
