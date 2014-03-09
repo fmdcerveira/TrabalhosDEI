@@ -4,7 +4,7 @@ public class TestGitSalvador {
 
 	public void main (String [] args)
 	{
-		System.out.println("POTATOES in master branch merged");
+		System.out.println("POTATOES in my branch only");
 	}
 	
 }
